@@ -1,6 +1,6 @@
 import express from "express";
 import { config } from "./config.js";
-import { connectDB } from "./db.js";
+import { connectDB, ensureDB } from "./db.js";
 import { webhookRouter } from "./routes/webhook.js";
 import { checkoutRouter } from "./routes/checkout.js";
 import { licenseRouter } from "./routes/license.js";
@@ -26,6 +26,11 @@ app.use((req, res, next) => {
   next();
 });
 
+// Every /api route touches the DB — make sure it's connected first. This sits
+// before express.json() so the webhook's raw body is preserved, and before the
+// webhook mount so it covers fulfillment too. (/health stays up regardless.)
+app.use("/api", ensureDB);
+
 // Stripe webhook needs the RAW body — mount it before express.json().
 app.use("/api", webhookRouter);
 
@@ -49,6 +54,7 @@ app.listen(config.port, () => {
   if (!config.smtp.pass) console.warn("   ⚠️  SMTP not fully set — license emails disabled.");
 });
 
-// Connect to Mongo in the background so /health stays up during DB hiccups;
-// data operations will error clearly until the connection succeeds.
-void connectDB();
+// Warm the connection on boot so the first real request is fast. Per-request
+// `ensureDB` is the actual guarantee; this just avoids the cold-start latency.
+// Swallow errors here — a failed attempt is retried on the next request.
+connectDB().catch(() => {});
