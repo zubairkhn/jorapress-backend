@@ -61,7 +61,26 @@ Edit `PLANS` in `src/config.ts` — name, `amount` (cents), `currency`,
 | POST | `/api/license/deactivate` | plugin | `{key, site}` → free a seat |
 | GET  | `/api/update/check?key=&site=&version=` | plugin | is a newer build available? |
 | GET  | `/api/update/download?key=&site=` | plugin | download the zip (licensed only) |
+| POST | `/api/account/request-link` | account page | `{email}` → email a magic sign-in link |
+| POST | `/api/account/verify` | account page | `{token}` → exchange magic token for a session |
+| GET  | `/api/account/me` | account page | (Bearer) licenses, sites, days left |
+| POST | `/api/account/portal` | account page | (Bearer) `{key}` → Stripe billing portal URL |
+| GET  | `/api/account/download?key=` | account page | (Bearer) download the licensed zip |
+| POST | `/api/admin/login` | admin page | `{password}` → admin session token |
+| GET  | `/api/admin/stats` | admin page | (Bearer) customers, MRR/ARR, counts |
+| GET  | `/api/admin/licenses?search=&status=&tier=&page=` | admin page | (Bearer) paginated list |
+| GET  | `/api/admin/licenses/:key` | admin page | (Bearer) full license detail |
 | GET  | `/health` | you | liveness |
+
+### Customer accounts & admin
+
+- **Customer account** (`/account` on the marketing site): passwordless. The
+  customer enters their email, gets a magic link, and lands on a dashboard with
+  their license key (copy), linked sites, days left, a licensed re-download, and
+  a **Manage billing** button (Stripe Customer Portal). Auth is a short-lived
+  signed token in the `Authorization: Bearer` header — set `AUTH_SECRET`.
+- **Admin** (`/admin` on the marketing site): a single `ADMIN_PASSWORD` unlocks
+  a dashboard of customers, subscriptions, MRR/ARR and per-license detail.
 
 ## Stripe webhook
 

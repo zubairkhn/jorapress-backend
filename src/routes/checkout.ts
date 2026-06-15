@@ -1,6 +1,8 @@
 import { Router } from "express";
 import { stripe } from "../stripe.js";
 import { config, getPlan } from "../config.js";
+import { fulfillCheckoutSession } from "../fulfillment.js";
+import { daysLeft } from "../license.js";
 
 export const checkoutRouter = Router();
 
@@ -19,6 +21,11 @@ checkoutRouter.post("/checkout", async (req, res) => {
   const plan = getPlan(planKey);
   if (!plan) {
     return res.status(400).json({ error: `Unknown plan "${planKey}".` });
+  }
+
+  if (!config.stripe.successUrl.startsWith("http")) {
+    console.error("checkout: CHECKOUT_SUCCESS_URL is not set or invalid:", config.stripe.successUrl);
+    return res.status(503).json({ error: "Checkout not configured — missing success URL." });
   }
 
   try {
@@ -51,7 +58,10 @@ checkoutRouter.post("/checkout", async (req, res) => {
 
 /**
  * GET /api/checkout/session?id=cs_...
- * Lets the success page show the plan + email without exposing Stripe keys.
+ * Powers the success page: returns the plan + email AND the issued license key.
+ * Acts as a fulfillment fallback — if the webhook hasn't landed yet (or isn't
+ * configured), it issues + emails the license on demand so the customer always
+ * sees their key here.
  */
 checkoutRouter.get("/checkout/session", async (req, res) => {
   if (!stripe) return res.status(503).json({ error: "Not configured." });
@@ -59,10 +69,28 @@ checkoutRouter.get("/checkout/session", async (req, res) => {
   if (!id) return res.status(400).json({ error: "Missing id." });
   try {
     const s = await stripe.checkout.sessions.retrieve(id);
+
+    // Ensure the license exists (idempotent). Non-fatal if it can't be issued.
+    let license = null;
+    try {
+      license = await fulfillCheckoutSession(s);
+    } catch (err) {
+      console.error("checkout/session: fulfillment fallback failed", err);
+    }
+
     return res.json({
       plan: s.metadata?.plan ?? null,
       email: s.customer_details?.email ?? null,
       status: s.payment_status,
+      license: license
+        ? {
+            key: license.licenseKey,
+            tier: license.tier,
+            maxSites: license.maxSites,
+            expiresAt: license.expiresAt,
+            daysLeft: daysLeft(license),
+          }
+        : null,
     });
   } catch {
     return res.status(404).json({ error: "Session not found." });

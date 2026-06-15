@@ -22,6 +22,23 @@ export function getBySubscription(subId: string): Promise<LicenseDoc | null> {
   return LicenseModel.findOne({ stripeSubscriptionId: subId }).exec();
 }
 
+/** Normalize an email for case-insensitive matching/storage. */
+export function normalizeEmail(email: string): string {
+  return (email || "").trim().toLowerCase();
+}
+
+/** All licenses belonging to an email, newest first. */
+export function getByEmail(email: string): Promise<LicenseDoc[]> {
+  return LicenseModel.find({ email: normalizeEmail(email) }).sort({ createdAt: -1 }).exec();
+}
+
+/** Whole-number days until expiry (null = no expiry; 0 = expired). */
+export function daysLeft(lic: LicenseDoc): number | null {
+  if (!lic.expiresAt) return null;
+  const ms = lic.expiresAt.getTime() - Date.now();
+  return ms <= 0 ? 0 : Math.ceil(ms / 86_400_000);
+}
+
 export function createLicense(params: {
   email: string;
   tier: Tier;
@@ -31,7 +48,7 @@ export function createLicense(params: {
 }): Promise<LicenseDoc> {
   return LicenseModel.create({
     licenseKey: generateKey(),
-    email: params.email,
+    email: normalizeEmail(params.email),
     tier: params.tier,
     status: "active",
     maxSites: PLANS[params.tier].maxSites,

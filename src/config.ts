@@ -12,11 +12,18 @@ const required = (name: string, fallback?: string): string => {
 export const config = {
   port: Number(process.env.PORT) || 4000,
   publicUrl: required("PUBLIC_URL", "http://localhost:4000"),
+  // Public URL of the marketing site — used to build magic-link / account URLs.
+  appUrl: required("APP_URL", "http://localhost:3000"),
   allowedOrigins: (process.env.ALLOWED_ORIGINS ?? "http://localhost:3000")
     .split(",")
     .map((s) => s.trim())
     .filter(Boolean),
   mongoUri: required("MONGODB_URI", "mongodb://127.0.0.1:27017/jorapress"),
+
+  // Secret for signing magic-link + session tokens (HMAC). MUST be set in prod.
+  authSecret: required("AUTH_SECRET", "dev-insecure-secret-change-me"),
+  // Single shared password that unlocks the /admin dashboard.
+  adminPassword: process.env.ADMIN_PASSWORD ?? "",
 
   stripe: {
     secretKey: required("STRIPE_SECRET_KEY"),

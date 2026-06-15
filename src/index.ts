@@ -5,6 +5,8 @@ import { webhookRouter } from "./routes/webhook.js";
 import { checkoutRouter } from "./routes/checkout.js";
 import { licenseRouter } from "./routes/license.js";
 import { updateRouter } from "./routes/update.js";
+import { accountRouter } from "./routes/account.js";
+import { adminRouter } from "./routes/admin.js";
 import { errorHandler } from "./util.js";
 
 const app = express();
@@ -18,7 +20,7 @@ app.use((req, res, next) => {
     res.setHeader("Access-Control-Allow-Origin", origin);
     res.setHeader("Vary", "Origin");
     res.setHeader("Access-Control-Allow-Methods", "GET,POST,OPTIONS");
-    res.setHeader("Access-Control-Allow-Headers", "Content-Type");
+    res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");
   }
   if (req.method === "OPTIONS") return res.sendStatus(204);
   next();
@@ -35,6 +37,8 @@ app.get("/health", (_req, res) => res.json({ ok: true, version: config.plugin.ve
 app.use("/api", checkoutRouter);
 app.use("/api", licenseRouter);
 app.use("/api", updateRouter);
+app.use("/api", accountRouter);
+app.use("/api", adminRouter);
 
 app.use((_req, res) => res.status(404).json({ error: "Not found." }));
 app.use(errorHandler);

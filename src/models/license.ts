@@ -29,6 +29,10 @@ const licenseSchema = new Schema(
   { timestamps: true }
 );
 
-export type License = InferSchemaType<typeof licenseSchema>;
+// `timestamps: true` adds these at runtime; surface them in the type too.
+export type License = InferSchemaType<typeof licenseSchema> & {
+  createdAt: Date;
+  updatedAt: Date;
+};
 export type LicenseDoc = HydratedDocument<License>;
 export const LicenseModel = model("License", licenseSchema);
